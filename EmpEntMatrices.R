@@ -29,9 +29,9 @@ CZ_Establishments <- CZ_Establishments %>% group_by(CZ, naics) %>% summarise_all
 ### Pull a single year ########################################################
 
 #set Year: 3 is 2015, 8 is 2010, 9 is 2009...
-Emp_year <- CZ_Employees[,c(1,2,3)]
+Emp_year <- CZ_Employees[,c(1,2,7)]
 colnames(Emp_year) <- c("CZ", "naics", "Quantity")
-Est_year <- CZ_Establishments[,c(1,2,3)]
+Est_year <- CZ_Establishments[,c(1,2,7)]
 colnames(Est_year) <- c("CZ", "naics", "Quantity")
 
 
@@ -108,22 +108,22 @@ colnames(Dist_Est) <- allIndustry
 ### Correlation ###############################################################
 
 #transpose the matrix because Correlation uses relationship between columns
-Emp_matrix <- t(Emp_matrix)
-Cor_Emp <- as.matrix(cor(Emp_matrix, use = "pairwise.complete.obs")) #Warning message expected
-Cor_Emp <- 0.5 * (1+Cor_Emp)
-rownames(Cor_Emp) <- allIndustry
-colnames(Cor_Emp) <- allIndustry
+#Emp_matrix <- t(Emp_matrix)
+#Cor_Emp <- as.matrix(cor(Emp_matrix, use = "pairwise.complete.obs")) #Warning message expected
+#Cor_Emp <- 0.5 * (1+Cor_Emp)
+#rownames(Cor_Emp) <- allIndustry
+#colnames(Cor_Emp) <- allIndustry
 
-Est_matrix <- t(Est_matrix)
-Cor_Est <- as.matrix(cor(Est_matrix, use = "pairwise.complete.obs"))
-Cor_Est <- 0.5 * (1+Cor_Est)
-rownames(Cor_Est) <- allIndustry
-colnames(Cor_Est) <- allIndustry
+#Est_matrix <- t(Est_matrix)
+#Cor_Est <- as.matrix(cor(Est_matrix, use = "pairwise.complete.obs"))
+#Cor_Est <- 0.5 * (1+Cor_Est)
+#rownames(Cor_Est) <- allIndustry
+#colnames(Cor_Est) <- allIndustry
 
 
 ### Create historical averages ################################################
 
-##Create AvgDist dataframes for the first year/iteration, then use code below after
+#Create AvgDist dataframes for the first year/iteration, then use code below after
 #AvgDist_Emp <- melt(Dist_Emp, id="CZ")
 #colnames(AvgDist_Emp) <- c("Industry1","Industry2","2010")
 
@@ -139,22 +139,22 @@ colnames(Cor_Est) <- allIndustry
 
 #Add columns to AvgDist and AvgCor on subsequent years/iterations
 NextDist_Emp <- melt(Dist_Emp, id="CZ")
-colnames(NextDist_Emp) <- c("Industry1","Industry2","2006")
+colnames(NextDist_Emp) <- c("Industry1","Industry2","2011")
 
 NextDist_Est <- melt(Dist_Est, id="CZ")
-colnames(NextDist_Est) <- c("Industry1","Industry2","2006")
+colnames(NextDist_Est) <- c("Industry1","Industry2","2011")
 
 AvgDist_Emp <- AvgDist_Emp %>% left_join(NextDist_Emp, by=c("Industry1", "Industry2"))
 AvgDist_Est <- AvgDist_Est %>% left_join(NextDist_Est, by=c("Industry1", "Industry2"))
 
-NextCor_Emp <- melt(Cor_Emp, id="CZ")
-colnames(NextCor_Emp) <- c("Industry1","Industry2","2006")
+#NextCor_Emp <- melt(Cor_Emp, id="CZ")
+#colnames(NextCor_Emp) <- c("Industry1","Industry2","2006")
 
-NextCor_Est <- melt(Cor_Est, id="CZ")
-colnames(NextCor_Est) <- c("Industry1","Industry2","2006")
+#NextCor_Est <- melt(Cor_Est, id="CZ")
+#colnames(NextCor_Est) <- c("Industry1","Industry2","2006")
 
-AvgCor_Emp <- AvgCor_Emp %>% left_join(NextCor_Emp, by=c("Industry1", "Industry2"))
-AvgCor_Est <- AvgCor_Est %>% left_join(NextCor_Est, by=c("Industry1", "Industry2"))
+#AvgCor_Emp <- AvgCor_Emp %>% left_join(NextCor_Emp, by=c("Industry1", "Industry2"))
+#AvgCor_Est <- AvgCor_Est %>% left_join(NextCor_Est, by=c("Industry1", "Industry2"))
 
 
 
@@ -164,33 +164,33 @@ AvgCor_Est <- AvgCor_Est %>% left_join(NextCor_Est, by=c("Industry1", "Industry2
 ### When finished combining years #############################################
 AvgDist_Emp$Avg <- rowMeans(AvgDist_Emp[,c(3:7)], na.rm = T)
 AvgDist_Est$Avg <- rowMeans(AvgDist_Est[,c(3:7)], na.rm = T)
-AvgCor_Emp$Avg <- rowMeans(AvgCor_Emp[,c(3:7)], na.rm = T)
-AvgCor_Est$Avg <- rowMeans(AvgCor_Est[,c(3:7)], na.rm = T)
+#AvgCor_Emp$Avg <- rowMeans(AvgCor_Emp[,c(3:7)], na.rm = T)
+#AvgCor_Est$Avg <- rowMeans(AvgCor_Est[,c(3:7)], na.rm = T)
 
 AvgDist_Emp <- AvgDist_Emp[,c(1,2,8)]
 AvgDist_Est <- AvgDist_Est[,c(1,2,8)]
-AvgCor_Emp <- AvgCor_Emp[,c(1,2,8)]
-AvgCor_Est <- AvgCor_Est[,c(1,2,8)]
+#AvgCor_Emp <- AvgCor_Emp[,c(1,2,8)]
+#AvgCor_Est <- AvgCor_Est[,c(1,2,8)]
 
 AvgDist_Emp_DF <- spread(AvgDist_Emp, Industry1, Avg, fill = 0)
 AvgDist_Est_DF <- spread(AvgDist_Est, Industry1, Avg, fill = 0)
-AvgCor_Emp_DF <- spread(AvgCor_Emp, Industry1, Avg, fill = 0)
-AvgCor_Est_DF <- spread(AvgCor_Est, Industry1, Avg, fill = 0)
+#AvgCor_Emp_DF <- spread(AvgCor_Emp, Industry1, Avg, fill = 0)
+#AvgCor_Est_DF <- spread(AvgCor_Est, Industry1, Avg, fill = 0)
 
 AvgDist_Emp_DF$Industry2 <- NULL
 AvgDist_Est_DF$Industry2 <- NULL
-AvgCor_Emp_DF$Industry2 <- NULL
-AvgCor_Est_DF$Industry2 <- NULL
+#AvgCor_Emp_DF$Industry2 <- NULL
+#AvgCor_Est_DF$Industry2 <- NULL
 
 row.names(AvgDist_Emp_DF) <- allIndustry
 row.names(AvgDist_Est_DF) <- allIndustry
-row.names(AvgCor_Emp_DF) <- allIndustry
-row.names(AvgCor_Est_DF) <- allIndustry
+#row.names(AvgCor_Emp_DF) <- allIndustry
+#row.names(AvgCor_Est_DF) <- allIndustry
 
 
 ### Export ####################################################################
-write.csv(AvgDist_Emp_DF, "Matrices/AvgDist_Emp.csv")
-write.csv(AvgDist_Est_DF, "Matrices/AvgDist_Est.csv")
+write.csv(AvgDist_Emp_DF, "Matrices/AvgDist_Emp_2015to2011.csv")
+write.csv(AvgDist_Est_DF, "Matrices/AvgDist_Est_2015to2011.csv")
 write.csv(AvgCor_Emp_DF, "Matrices/AvgCor_Emp.csv")
 write.csv(AvgCor_Est_DF, "Matrices/AvgCor_Est.csv")
 
