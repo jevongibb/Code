@@ -29,9 +29,9 @@ CZ_Establishments <- CZ_Establishments %>% group_by(CZ, naics) %>% summarise_all
 ### Pull a single year ########################################################
 
 #set Year: 3 is 2015, 8 is 2010, 9 is 2009...
-Emp_year <- CZ_Employees[,c(1,2,7)]
+Emp_year <- CZ_Employees[,c(1,2,3)]
 colnames(Emp_year) <- c("CZ", "naics", "Quantity")
-Est_year <- CZ_Establishments[,c(1,2,7)]
+Est_year <- CZ_Establishments[,c(1,2,3)]
 colnames(Est_year) <- c("CZ", "naics", "Quantity")
 
 
