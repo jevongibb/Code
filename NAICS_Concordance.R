@@ -5,7 +5,8 @@ library(tidyr)
 Imputed <- read.csv("County/Imputed_Hist.csv", header = T, stringsAsFactors = F, sep = ",", check.names = F)
 Establishments <- read.csv("County/Establishments_Hist.csv", header = T, stringsAsFactors = F, sep = ",", check.names = F)
 
-# load concordances
+# load concordances, based upon: https://www.census.gov/eos/www/naics/concordances/concordances.html ######
+# I created custom files, because I did not like (could not use)the Census files ###
 Concord2002 <- read.csv("NAICS/Concord_1998to2002.csv", header = T, sep = ",")
 Concord2007 <- read.csv("NAICS/Concord_2002to2007.csv", header = T, sep = ",")
 Concord2012 <- read.csv("NAICS/Concord_2007to2012.csv", header = T, sep = ",")
