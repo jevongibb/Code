@@ -26,7 +26,7 @@ Employees$Industry <- as.character(Employees$Industry)
 cutpoints <- as.numeric(quantile(as.matrix(Data), c(.01, .03, .05, .07, .1, .15, .2, .25, .3, .4, .5, .6, .7, .8, .9)))
 
 #cutpoints using K-neighbors
-cutpoints <- c(1, 2, 3, 5, 8, 13, 21, 43)
+cutpoints_k <- c(1, 2, 3, 5, 8, 13, 21, 43)
 
 
 ### Calculate expected RS using weighted raidus #####################################################
@@ -36,7 +36,7 @@ weightedRadius <- function(cutDist, distMat, datRS) {
   #filter distance matrix by cutDist (radius)
   distMat_filtered <- distMat[distMat$dist <= cutDist, ]
   
-  #find the industries where the minimum distance is less than the cutDist
+  #find the industries where the minimum distance is greater than the cutDist
   distMat_min_dist <- distMat %>% group_by(Industry) %>% summarise(min_dist = min(dist))
   distMat_min_dist <- distMat %>% left_join(distMat_min_dist, by = "Industry") %>% filter(dist == min_dist)
   distMat_min_dist <- distMat_min_dist[(!distMat_min_dist$Industry %in% distMat_filtered$Industry), ]
@@ -94,7 +94,7 @@ avgRadius <- function(cutDist, distMat, datRS) {
   #filter distance matrix by cutDist (radius)
   distMat_filtered <- distMat[distMat$dist <= cutDist, ]
   
-  #find the industries where the minimum distance is less than the cutDist
+  #find the industries where the minimum distance is greater than the cutDist
   distMat_min_dist <- distMat %>% group_by(Industry) %>% summarise(min_dist = min(dist))
   distMat_min_dist <- distMat %>% left_join(distMat_min_dist, by = "Industry") %>% filter(dist == min_dist)
   distMat_min_dist <- distMat_min_dist[(!distMat_min_dist$Industry %in% distMat_filtered$Industry), ]
@@ -115,9 +115,7 @@ avgRadius <- function(cutDist, distMat, datRS) {
     
     #eRS is averageRS
     eRSdat %>% group_by(Industry, Region) %>%
-      summarise(totProx = sum(1/dist, na.rm = T),
-                totRSnum = sum(eRSnum, na.rm = T)) %>%
-      ungroup() %>% mutate(eRS = totRSnum / totProx)
+      summarise(eRS = mean(RS))
     
   })
   
@@ -144,18 +142,10 @@ avgRadius <- function(cutDist, distMat, datRS) {
 
 ## Calculate expected RS using average of top-K neighbors #################
 
-avgKNN <- function(cutDist, distMat, datRS) {
+avgKNN <- function(k, distMat, datRS) {
   
   #filter distance matrix by cutDist (radius)
-  distMat_filtered <- distMat[distMat$dist <= cutDist, ]
-  
-  #find the industries where the minimum distance is less than the cutDist
-  distMat_min_dist <- distMat %>% group_by(Industry) %>% summarise(min_dist = min(dist))
-  distMat_min_dist <- distMat %>% left_join(distMat_min_dist, by = "Industry") %>% filter(dist == min_dist)
-  distMat_min_dist <- distMat_min_dist[(!distMat_min_dist$Industry %in% distMat_filtered$Industry), ]
-  
-  #combine filtered and min_dist
-  distMat_filtered <- rbind(distMat_filtered, distMat_min_dist[, c("Industry", "Neighbour", "dist")])
+  distMat_filtered <- distMat %>% group_by(Industry) %>% top_n(-k, dist)
   
   #split data to chunks (to overcome memory allocation error)
   nsplit <- 5
@@ -170,9 +160,7 @@ avgKNN <- function(cutDist, distMat, datRS) {
     
     #eRS is averageRS
     eRSdat %>% group_by(Industry, Region) %>%
-      summarise(totProx = sum(1/dist, na.rm = T),
-                totRSnum = sum(eRSnum, na.rm = T)) %>%
-      ungroup() %>% mutate(eRS = totRSnum / totProx)
+      summarise(eRS = mean(RS))
     
   })
   
@@ -198,3 +186,7 @@ avgKNN <- function(cutDist, distMat, datRS) {
 
 # Run KNN
 plyr::adply(cutpoints, 1, weightedRadius, distMat = Data_reshaped, datRS = Employees)
+
+plyr::adply(cutpoints, 1, avgRadius, distMat = Data_reshaped, datRS = Employees)
+
+plyr::adply(cutpoints_k, 1, avgKNN, distMat = Data_reshaped, datRS = Employees)
