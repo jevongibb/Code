@@ -76,14 +76,13 @@ weightedRadius <- function(cutDist, distMat, datRS) {
   estDistance$RS[is.na(estDistance$RS)] <- 0
   
   #export csv of estimates for each cutDist
-  write.csv(estDistance, file = paste0("estRS_", round(cutDist, 2), ".csv"), row.names = F)
+  write.csv(estDistance, file = paste0("estRS_weighted_radius_", round(cutDist, 2), ".csv"), row.names = F)
   
   #track predictiveness
   rmse_and_r_2 <- postResample(estDistance$eRS, estDistance$RS)
   mean_error <- sum(abs(estDistance$RS - estDistance$eRS)) / nrow(estDistance)
   
-  weightedTable <<- rbind(weightedTable, data.frame(cutDist = cutDist, rmse = rmse_and_r_2["RMSE"], r_2 = rmse_and_r_2["Rsquared"], mean_error = mean_error))
-  return(data.frame(cutDist = cutDist, rmse = rmse_and_r_2["RMSE"], r_2 = rmse_and_r_2["Rsquared"], mean_error = mean_error))
+  return(data.frame(radius = cutDist, RMSE = rmse_and_r_2["RMSE"], R2 = rmse_and_r_2["Rsquared"], Mean_Error = mean_error))
   
 }
 
@@ -96,12 +95,12 @@ avgRadius <- function(cutDist, distMat, datRS) {
   distMat_filtered <- distMat[distMat$dist <= cutDist, ]
   
   #find the industries where the minimum distance is greater than the cutDist
-  distMat_min_dist <- distMat %>% group_by(Industry) %>% summarise(min_dist = min(dist))
-  distMat_min_dist <- distMat %>% left_join(distMat_min_dist, by = "Industry") %>% filter(dist == min_dist)
-  distMat_min_dist <- distMat_min_dist[(!distMat_min_dist$Industry %in% distMat_filtered$Industry), ]
+  #distMat_min_dist <- distMat %>% group_by(Industry) %>% summarise(min_dist = min(dist))
+  #distMat_min_dist <- distMat %>% left_join(distMat_min_dist, by = "Industry") %>% filter(dist == min_dist)
+  #distMat_min_dist <- distMat_min_dist[(!distMat_min_dist$Industry %in% distMat_filtered$Industry), ]
   
   #combine filtered and min_dist
-  distMat_filtered <- rbind(distMat_filtered, distMat_min_dist[, c("Industry", "Neighbour", "dist")])
+  #distMat_filtered <- rbind(distMat_filtered, distMat_min_dist[, c("Industry", "Neighbour", "dist")])
   
   #split data to chunks (to overcome memory allocation error)
   nsplit <- 5
@@ -130,14 +129,13 @@ avgRadius <- function(cutDist, distMat, datRS) {
   estDistance$RS[is.na(estDistance$RS)] <- 0
   
   #export csv of estimates for each cutDist
-  write.csv(estDistance, file = paste0("estRS_", round(cutDist, 2), ".csv"), row.names = F)
+  write.csv(estDistance, file = paste0("estRS_average_radius_", round(cutDist, 2), ".csv"), row.names = F)
   
   #track predictiveness
   rmse_and_r_2 <- postResample(estDistance$eRS, estDistance$RS)
   mean_error <- sum(abs(estDistance$RS - estDistance$eRS)) / nrow(estDistance)
   
-  avgTable <<- rbind(avgTable, data.frame(cutDist = cutDist, rmse = rmse_and_r_2["RMSE"], r_2 = rmse_and_r_2["Rsquared"], mean_error = mean_error))
-  return(data.frame(cutDist = cutDist, rmse = rmse_and_r_2["RMSE"], r_2 = rmse_and_r_2["Rsquared"], mean_error = mean_error))
+  return(data.frame(radius = cutDist, RMSE = rmse_and_r_2["RMSE"], R2 = rmse_and_r_2["Rsquared"], Mean_Error = mean_error))
   
 }
 
@@ -182,19 +180,21 @@ avgKNN <- function(k, distMat, datRS) {
   rmse_and_r_2 <- postResample(estDistance$eRS, estDistance$RS)
   mean_error <- sum(abs(estDistance$RS - estDistance$eRS)) / nrow(estDistance)
   
-  kTable <<- rbind.data.frame(kTable, data.frame(k = k, rmse = rmse_and_r_2["RMSE"], r_2 = rmse_and_r_2["Rsquared"], mean_error = mean_error))
-  return(data.frame(k = k, rmse = rmse_and_r_2["RMSE"], r_2 = rmse_and_r_2["Rsquared"], mean_error = mean_error))
+  return(data.frame(K = k, RMSE = rmse_and_r_2["RMSE"], R2 = rmse_and_r_2["Rsquared"], Mean_Error = mean_error))
   
 }
 
 #create empty dataframes to store results
-weightedTable <- setNames(data.frame(matrix(ncol = 4, nrow = 0)), c("radius", "RMSE", "R2", "Mean_Error"))
-avgTable <- setNames(data.frame(matrix(ncol = 4, nrow = 0)), c("radius", "RMSE", "R2", "Mean_Error"))
-kTable <- setNames(data.frame(matrix(ncol = 4, nrow = 0)), c("K", "RMSE", "R2", "Mean_Error"))
+#weightedTable <- setNames(data.frame(matrix(ncol = 4, nrow = 0)), c("radius", "RMSE", "R2", "Mean_Error"))
+#avgTable <- setNames(data.frame(matrix(ncol = 4, nrow = 0)), c("radius", "RMSE", "R2", "Mean_Error"))
+#kTable <- setNames(data.frame(matrix(ncol = 4, nrow = 0)), c("K", "RMSE", "R2", "Mean_Error"))
 
 # Run KNN
-plyr::adply(cutpoints, 1, weightedRadius, distMat = Data_reshaped, datRS = Employees)
+weightedTable <- plyr::adply(cutpoints, 1, weightedRadius, distMat = Data_reshaped, datRS = Employees)
+weightedTable$X1 <- NULL
 
-plyr::adply(cutpoints, 1, avgRadius, distMat = Data_reshaped, datRS = Employees)
+avgTable <- plyr::adply(cutpoints, 1, avgRadius, distMat = Data_reshaped, datRS = Employees)
+avgTable$X1 <- NULL
 
-plyr::adply(cutpoints_k, 1, avgKNN, distMat = Data_reshaped, datRS = Employees)
+kTable <- plyr::adply(cutpoints_k, 1, avgKNN, distMat = Data_reshaped, datRS = Employees)
+kTable$X1 <- NULL
