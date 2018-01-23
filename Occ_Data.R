@@ -49,28 +49,28 @@ occ_3d$PCT_TOTAL[occ_3d$PCT_TOTAL == "**"] <- 0
 #figure out match for each industry
 #6-digit
 Industries$Match <- ifelse(Industries$NAICS %in% occ_5d$NAICS, Industries$NAICS, NA)
-sum(is.na(Industries$Match))
+print(paste("At 6-digit level: Matched ", length(Industries$Match) - sum(is.na(Industries$Match)), " industries. ", sum(is.na(Industries$Match)), " remaining.", sep = ""))
 
 #5-digit
 Industries$Match <- 
   ifelse(is.na(Industries$Match),
   ifelse(paste(substr(Industries$NAICS,1,5),0, sep = "") %in% occ_5d$NAICS, paste(substr(Industries$NAICS,1,5),0, sep = ""), NA),
   Industries$Match)
-sum(is.na(Industries$Match))
+print(paste("At 5-digit level: Matched ", length(Industries$Match) - sum(is.na(Industries$Match)), " industries. ", sum(is.na(Industries$Match)), " remaining.", sep = ""))
 
 #4-digit
 Industries$Match <- 
   ifelse(is.na(Industries$Match),
   ifelse(paste(substr(Industries$NAICS,1,4),"00", sep = "") %in% occ_4d$NAICS, paste(substr(Industries$NAICS,1,4),"00", sep = ""), NA),
   Industries$Match)
-sum(is.na(Industries$Match))
+print(paste("At 4-digit level: Matched ", length(Industries$Match) - sum(is.na(Industries$Match)), " industries. ", sum(is.na(Industries$Match)), " remaining.", sep = ""))
 
 #3-digit
 Industries$Match <- 
   ifelse(is.na(Industries$Match),
   ifelse(paste(substr(Industries$NAICS,1,3),"000", sep = "") %in% occ_3d$NAICS, paste(substr(Industries$NAICS,1,3),"000", sep = ""), NA),
   Industries$Match)
-sum(is.na(Industries$Match))
+print(paste("At 3-digit level: Matched ", length(Industries$Match) - sum(is.na(Industries$Match)), " industries. ", sum(is.na(Industries$Match)), " remaining.", sep = ""))
 
 #turn occ tables wide, then merge on Match
 occ_5d_wide <- spread(occ_5d, OCC_CODE, PCT_TOTAL, fill = 0)

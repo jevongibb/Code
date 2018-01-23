@@ -3,28 +3,28 @@ library(reshape2)
 
 #Load matrices
 LC_Emp <- read.csv("Matrices/AvgDist_Emp_2011to2015.csv", header = T, sep = ",", stringsAsFactors = F, check.names = F, row.names = 1)
-LC_Est <- read.csv("Matrices/AvgDist_Est.csv", header = T, sep = ",", stringsAsFactors = F, check.names = F, row.names = 1)
-OCC <- read.csv("Matrices/AvgDist_Occ.csv", header = T, sep = ",", stringsAsFactors = F, check.names = F, row.names = 1)
-IO <- read.csv("Matrices/IO_data.csv", header = T, sep = ",", stringsAsFactors = F, check.names = F, row.names = 1)
+LC_Est <- read.csv("Matrices/AvgDist_Est_2011to2015.csv", header = T, sep = ",", stringsAsFactors = F, check.names = F, row.names = 1)
+Occ <- read.csv("Matrices/AvgDist_Occ_2011to2015.csv", header = T, sep = ",", stringsAsFactors = F, check.names = F, row.names = 1)
+IO <- read.csv("Matrices/IO_data_dist.csv", header = T, sep = ",", stringsAsFactors = F, check.names = F, row.names = 1)
 
 #Test correlation
-CorEmpEnt <- cor(c(as.matrix(LC_Emp)), c(as.matrix(LC_Est)))
-CorEmpIO <- cor(c(as.matrix(LC_Emp)), c(as.matrix(IO)))
-CoeEstIO <- cor(c(as.matrix(LC_Est)), c(as.matrix(IO)))
+cor(c(as.matrix(LC_Emp)), c(as.matrix(LC_Est)))
+cor(c(as.matrix(LC_Emp)), c(as.matrix(IO)))
+cor(c(as.matrix(LC_Est)), c(as.matrix(IO)))
 
-#Shrink Matrices to match OCC
+#Shrink Matrices to match Occ
 Remove <- colnames(LC_Emp)
-Remove2 <- colnames(OCC)
+Remove2 <- colnames(Occ)
 Remove <- Remove[!(Remove %in% Remove2)]
 rm(Remove2)
 LC_Emp2 <- LC_Emp[!rownames(LC_Emp) %in% Remove, !colnames(LC_Emp) %in% Remove]
 LC_Est2 <- LC_Est[!rownames(LC_Est) %in% Remove, !colnames(LC_Est) %in% Remove]
 IO2 <- IO[!rownames(IO) %in% Remove, !colnames(IO) %in% Remove]
 
-#OCC correlations
-CorEmpOCC <- cor(c(as.matrix(LC_Emp2)), c(as.matrix(OCC)))
-CorEstOCC <- cor(c(as.matrix(LC_Est2)), c(as.matrix(OCC)))
-CorIOOCC <- cor(c(as.matrix(IO2)), c(as.matrix(OCC)))
+#Occ correlations
+cor(c(as.matrix(LC_Emp2)), c(as.matrix(Occ)))
+cor(c(as.matrix(LC_Est2)), c(as.matrix(Occ)))
+cor(c(as.matrix(IO2)), c(as.matrix(Occ)))
 
 
 #Combine matrices
@@ -46,19 +46,19 @@ IO3 <- IO3[,c(676, 1:675)]
 IO3 <- melt(IO3)
 colnames(IO3) <- c("Industry1", "Industry2", "Distance")
 
-OCC3 <- OCC
-OCC3$NAICS <- colnames(OCC3)
-OCC3 <- OCC3[,c(658, 1:657)]
-OCC3 <- melt(OCC3)
-colnames(OCC3) <- c("Industry1", "Industry2", "Distance")
+Occ3 <- Occ
+Occ3$NAICS <- colnames(Occ3)
+Occ3 <- Occ3[,c(658, 1:657)]
+Occ3 <- melt(Occ3)
+colnames(Occ3) <- c("Industry1", "Industry2", "Distance")
 
 Combo <- LC_Emp3
 Combo <- Combo %>% left_join(LC_Est3, by=c("Industry1", "Industry2"))
 Combo <- Combo %>% left_join(IO3, by=c("Industry1", "Industry2"))
-OCC3$Industry2 <- as.character(OCC3$Industry2)
-Combo <- Combo %>% left_join(OCC3, by=c("Industry1", "Industry2"))
+Occ3$Industry2 <- as.character(Occ3$Industry2)
+Combo <- Combo %>% left_join(Occ3, by=c("Industry1", "Industry2"))
 
-colnames(Combo)[3:6] <- c("LC_Emp", "LC_Est", "IO", "OCC")
+colnames(Combo)[3:6] <- c("LC_Emp", "LC_Est", "IO", "Occ")
 
 
 ### Standardize Distances##############################################
@@ -66,13 +66,20 @@ colnames(Combo)[3:6] <- c("LC_Emp", "LC_Est", "IO", "OCC")
 #Remove same-same pairs
 Combo <- Combo[Combo$Industry1 != Combo$Industry2,]
 
-#generate percentrank
-Combo$Test <- rank(Combo$LC_Emp, ties.method = "min", na.last = NA) / sum(!is.na(Combo$LC_Emp))
-Combo$Scale <- scale(Combo$LC_Emp)
+#standardize
+Combo$Scale_LC_Emp <- scale(Combo$LC_Emp)
+Combo$Scale_LC_Est <- scale(Combo$LC_Est)
+Combo$Scale_Occ <- scale(Combo$Occ)
+Combo$Scale_IO <- scale(Combo$IO)
 
-#normalize
-normalize <- function(x){(x-min(x))/(max(x)-min(x))}
-Combo$Normalize <- normalize(Combo$LC_Emp)
+Combo$Scale <- rowMeans(Combo[,7:10], na.rm = T)
 
 
-#I think Test is better than Scale
+### Export standardized distances as a matrix #########################
+
+NewCombo <- spread(Combo[,c(1,2,16)], Industry2, Scale, fill = NA)
+rownames(NewCombo) <- NewCombo$Industry1
+NewCombo$Industry1 <- NULL
+NewCombo <- as.matrix(NewCombo)
+
+write.csv(NewCombo, "Matrices/NewCombo.csv")
