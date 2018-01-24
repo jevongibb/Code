@@ -1,4 +1,5 @@
 library(dplyr)
+library(tidyr)
 library(reshape2)
 
 #Load matrices
@@ -77,7 +78,7 @@ Combo$Scale <- rowMeans(Combo[,7:10], na.rm = T)
 
 ### Export standardized distances as a matrix #########################
 
-NewCombo <- spread(Combo[,c(1,2,16)], Industry2, Scale, fill = NA)
+NewCombo <- spread(Combo[,c(1,2,11)], Industry2, Scale, fill = NA)
 rownames(NewCombo) <- NewCombo$Industry1
 NewCombo$Industry1 <- NULL
 NewCombo <- as.matrix(NewCombo)

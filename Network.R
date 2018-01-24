@@ -1,27 +1,58 @@
 library(dplyr)
 library(reshape2)
+library(igraph)
+library(rgexf)
+options(stringsAsFactors = FALSE)
 
-#Load Combo Matrix
-Matrix <- read.csv("Matrices/NewCombo.csv", header = T, sep = ",", stringsAsFactors = F, check.names = F)
+### Load Combo Matrix
+Matrix <- read.csv("Matrices/NewCombo.csv", header = T, sep = ",", stringsAsFactors = F, check.names = F, row.names = 1)
 NAICS <- read.csv("NAICS/NAICS.csv", header = T, sep = ",", stringsAsFactors = F, check.names = F)
 
-# Create a minimum spanning tree from combo matrix
+### Create graph
+#create dataframe of edges
+edges <- Matrix
+edges$NAICS <- colnames(edges)
+edges <- melt(edges)
+colnames(edges) <- c("V1", "V2", "weight")
+edges$V2 <- as.character(edges$V2)
+edges <- edges[edges$V1 < edges$V2, ]
+#convert to graph
+g <- graph_from_data_frame(edges, directed = FALSE)
 
-# Find radius such that average number of edges per node is 10
 
-### You might want to review "script.R" for this section. You made this for me last Summer.
+### Create a minimum spanning tree for graph
+#create mst (graph)
+g_mst <- mst(g, algorithm = "prim")
+#convert to dataframe of mst edges
+edges_mst <- as.data.frame(get.edgelist(g_mst))
 
-# Add edges within radius above
 
-# Gephi requires positive numbers for weight. How would you do this?
+### Find radius such that average number of edges per node is 10
+#we just calculate how many edges we should have (= number of nodes * 10), and select edges with lowest weight
+n_nodes <- ncol(Matrix)
+new_edges <- edges %>% arrange(weight) %>% top_n((n_nodes*10)-675, -weight)
 
-# Export edges file to Gephi
 
-## Export nodes file to Gephi
-# First, left join NAICS descriptions to nodes
-nodes <- melt(Matrix)
-nodes <- nodes[,1:2]
-NAICS <- NAICS(,c(1,6))
-nodes <- nodes %>% left_join(NAICS, by=c("naics"="NAICS"))
+### Add edges within radius above
+#mark which edges in old graph and in new graph are in mst
+edges_mst$in_mst <- TRUE
+edges <- edges %>% left_join(edges_mst, by = c("V1", "V2"))
+new_edges <- new_edges %>% left_join(edges_mst, by = c("V1", "V2"))
 
-# Then export
+#add mst edges to new graph (all that it did not contain earlier)
+new_edges <- rbind(new_edges[is.na(new_edges$in_mst), ], edges[!is.na(edges$in_mst), ])
+new_edges$in_mst <- NULL
+
+### Gephi requires positive numbers for weight. How would you do this?
+
+### Export to Gephi
+#convert to graph
+new_g <- graph_from_data_frame(new_edges, directed = FALSE)
+#add NAICS label to nodes
+V(new_g)$Industry <- NAICS$Label[match(as.numeric(V(new_g)$name), NAICS$NAICS)]
+V(new_g)$Industry <- iconv(V(new_g)$Industry, "latin1", "UTF-8") #recoding to UTF-8 format (cause Gephi demands it)
+
+#convert to Gephi format
+new_g_gephi <- igraph.to.gexf(new_g)
+#export
+print(new_g_gephi, "new_graph.gexf", replace = TRUE)
