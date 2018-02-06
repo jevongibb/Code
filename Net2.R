@@ -2,7 +2,6 @@ library(dplyr)
 library(reshape2)
 library(igraph)
 library(rgexf)
-library(jsonlite)
 options(stringsAsFactors = FALSE)
 
 ### Load Combo Matrix
@@ -31,7 +30,7 @@ edges_mst <- as.data.frame(get.edgelist(g_mst))
 ### Find radius such that average number of edges per node is 10
 #we just calculate how many edges we should have (= number of nodes * 10), and select edges with lowest weight
 n_nodes <- ncol(Matrix)
-new_edges <- edges %>% arrange(weight) %>% top_n((n_nodes*10)-675, -weight)
+new_edges <- edges %>% arrange(weight) %>% top_n((n_nodes*20)-675, -weight)
 
 ### Add edges within radius above (cannot rbind edges_mst and new_edges, b/c mst does not have weight)
 #mark which edges in old graph and in new graph are in mst
@@ -47,9 +46,9 @@ new_edges$in_mst <- NULL
 normal <- function(x) {(x-min(x))/(max(x)-min(x))}
 new_edges$weight <- (1-normal(new_edges$weight))*100
 
-
-
-
+edges <- new_edges
+colnames(edges) <- c("Source", "Target", "Weight")
+edges$Weight <- ifelse(edges$Weight==0,1,edges$Weight) # Gephi wants min value of 1
 
 
 #Pull data to add info to nodes
@@ -62,46 +61,18 @@ wages$naics <- as.integer(wages$naics)
 ### Export to csv and json
 nodes <- as.data.frame(colnames(Matrix))
 colnames(nodes)[1] <- "Id"
-nodes$id <- as.integer(nodes$id)
+nodes$Id <- as.integer(nodes$Id)
 nodes <- nodes %>% left_join(NAICS[,c(1,6)], by=c("Id"="NAICS"))
 nodes$group <- substr(nodes$Id,1,1)
 nodes <- nodes %>% left_join(NAICSTotal, by=c("Id"="naics"))
 nodes <- nodes %>% left_join(Natl_Trend, by=c("Id"="naics"))
 nodes <- nodes %>% left_join(wages, by=c("Id"="naics"))
 
-edges <- new_edges
-colnames(edges) <- c("Source", "Target", "Weight")
-edges$Weight <- ifelse(edges$Weight==0,1,edges2$Weight) # Gephi wants min value of 1
-
-write.csv(edges, "edges.csv", row.names = F)
-write.csv(nodes, "nodes.csv", row.names = F)
+#Convert Trend and Salary to Quantiles (8)
+nodes$Trend_Q <- cut(nodes$Natl_Trend, quantile(nodes$Natl_Trend, probs = 0:8/8), include.lowest = T, labels = F)
+nodes$Salary_Q <- cut(nodes$salary, quantile(nodes$salary, probs = 0:8/8, na.rm = T), include.lowest = T, labels = F)
+nodes$Salary_Delta_Q <- cut(nodes$delta, quantile(nodes$delta, probs = 0:8/8, na.rm = T), include.lowest = T, labels = F)
 
 
-
-
-
-
-
-
-##### Old Code ##############################################################
-
-nodes_json <- jsonlite::toJSON(nodes, pretty = TRUE)
-write(nodes_json, file = "nodes.json")
-
-edges_json <- jsonlite::toJSON(edges, pretty = TRUE)
-write(edges_json, file = "edges.json")
-
-
-
-
-### Export to Gephi
-#convert to graph
-new_g <- graph_from_data_frame(new_edges, directed = TRUE)
-#add NAICS label to nodes
-V(new_g)$Industry <- NAICS$Label[match(as.numeric(V(new_g)$name), NAICS$NAICS)]
-V(new_g)$Industry <- iconv(V(new_g)$Industry, "latin1", "UTF-8") #recoding to UTF-8 format (cause Gephi demands it)
-
-#convert to Gephi format
-new_g_gephi <- igraph.to.gexf(new_g)
-#export
-print(new_g_gephi, "new_graph.gexf", replace = TRUE)
+write.csv(edges, "test_edges.csv", row.names = F)
+write.csv(nodes, "test_nodes.csv", row.names = F)
