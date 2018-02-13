@@ -76,3 +76,50 @@ nodes$Salary_Delta_Q <- cut(nodes$delta, quantile(nodes$delta, probs = 0:8/8, na
 
 write.csv(edges, "test_edges.csv", row.names = F)
 write.csv(nodes, "test_nodes.csv", row.names = F)
+
+
+#Add region-specific data
+nodes <- read.csv("test_nodes.csv", header = T, sep = ",", check.names = F)
+
+Austin <- read.csv("Web/Austin_Master_Traded.csv", header = T, sep = ",", check.names = F)
+Tupelo <- read.csv("Web/Tupelo_Master_Traded.csv", header = T, sep = ",", check.names = F)
+Detroit <- read.csv("Web/Detroit_Master_Traded.csv", header = T, sep = ",", check.names = F)
+
+nodes <- nodes %>% left_join(Austin[,c(2,13,14)], by=c("Id"="naics"))
+colnames(nodes)[c(length(nodes)-1, length(nodes))] <- c("Austin_2015", "Austin")
+
+nodes <- nodes %>% left_join(Tupelo[,c(2,13,14)], by=c("Id"="naics"))
+colnames(nodes)[c(length(nodes)-1, length(nodes))] <- c("Tupelo_2015", "Tupelo")
+
+nodes <- nodes %>% left_join(Detroit[,c(2,13,14)], by=c("Id"="naics"))
+colnames(nodes)[c(length(nodes)-1, length(nodes))] <- c("Detroit_2015", "Detroit")
+
+#set cutoff to light up a node
+cutoff <- 0.5
+
+#change groups to adjust for RS
+nodes$Austin <- ifelse(nodes$Austin>cutoff, nodes$group, 0)
+nodes$Tupelo <- ifelse(nodes$Tupelo>cutoff, nodes$group, 0)
+nodes$Detroit <- ifelse(nodes$Detroit>cutoff, nodes$group, 0)
+
+
+nodes[,c(11:16)][is.na(nodes[,c(11:16)])] <- 0
+
+
+
+
+write.csv(nodes, "test_nodes.csv", row.names = F)
+
+
+
+
+#Palette
+#0: #cccccc (gray)
+#1: #a6761d (brown) 
+#2: #242424 (black)
+#3: #377eb8 (blue)
+#4: #984ea3 (purple)
+#5: #73c000 (green)
+#6: #ff7f00 (orange)  
+#7: #e31a1c (red)
+#8: #e6ab02 (gold)

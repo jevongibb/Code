@@ -35,6 +35,7 @@ EmpNAICSTotal <- Employees %>% group_by(naics) %>% summarise(Industry_Total=sum(
 EmpTotal <- sum(EmpNAICSTotal$Industry_Total)
 
 Custom_Employees <- Custom_Employees %>% left_join(EmpCustomTotal, by="Region")
+Custom_Employees$Pct_Total <- Custom_Employees$`2015`/Custom_Employees$Region_Total
 Custom_Employees <- Custom_Employees %>% left_join(EmpNAICSTotal, by="naics")
 Custom_Employees$RS_2015 <- (Custom_Employees$`2015` / Custom_Employees$Region_Total) / (Custom_Employees$Industry_Total / EmpTotal)
 Custom_Employees$Region_Total <- Custom_Employees$Industry_Total <- NULL
