@@ -2,7 +2,9 @@ library(dplyr)
 library(reshape2)
 library(igraph)
 library(rgexf)
-options(stringsAsFactors = FALSE)
+library(scales)
+options(stringsAsFactors = FALSE, scipen = 999)
+
 
 ### Load Combo Matrix
 Matrix <- read.csv("Matrices/NewCombo.csv", header = T, sep = ",", check.names = F, row.names = 1)
@@ -55,7 +57,7 @@ edges$Weight <- ifelse(edges$Weight==0,1,edges$Weight) # Gephi wants min value o
 Info <- read.csv("Web/Master_Traded.csv", sep = ",", header = T, check.names = F)
 NAICSTotal <- Info %>% group_by(naics) %>% summarise(Industry_Total=sum(`2015`))
 Natl_Trend <- Info[,c(2,36)] %>% distinct(naics, .keep_all = TRUE)
-wages <- read.csv("wages_filtered.csv", sep = ",", header = T)
+wages <- read.csv("Wages/2015_wages_filtered.csv", sep = ",", header = T)
 wages$naics <- as.integer(wages$naics)
 
 ### Export to csv and json
@@ -67,19 +69,15 @@ nodes$group <- substr(nodes$Id,1,1)
 nodes <- nodes %>% left_join(NAICSTotal, by=c("Id"="naics"))
 nodes <- nodes %>% left_join(Natl_Trend, by=c("Id"="naics"))
 nodes <- nodes %>% left_join(wages, by=c("Id"="naics"))
+nodes$Natl_Trend <- percent(nodes$Natl_Trend)
 
 #Convert Trend and Salary to Quantiles (8)
-nodes$Trend_Q <- cut(nodes$Natl_Trend, quantile(nodes$Natl_Trend, probs = 0:8/8), include.lowest = T, labels = F)
-nodes$Salary_Q <- cut(nodes$salary, quantile(nodes$salary, probs = 0:8/8, na.rm = T), include.lowest = T, labels = F)
-nodes$Salary_Delta_Q <- cut(nodes$delta, quantile(nodes$delta, probs = 0:8/8, na.rm = T), include.lowest = T, labels = F)
-
-
-write.csv(edges, "test_edges.csv", row.names = F)
-write.csv(nodes, "test_nodes.csv", row.names = F)
+#nodes$Trend_Q <- cut(nodes$Natl_Trend, quantile(nodes$Natl_Trend, probs = 0:8/8), include.lowest = T, labels = F)
+#nodes$Salary_Q <- cut(nodes$salary, quantile(nodes$salary, probs = 0:8/8, na.rm = T), include.lowest = T, labels = F)
+#nodes$Salary_Delta_Q <- cut(nodes$delta, quantile(nodes$delta, probs = 0:8/8, na.rm = T), include.lowest = T, labels = F)
 
 
 #Add region-specific data
-nodes <- read.csv("test_nodes.csv", header = T, sep = ",", check.names = F)
 
 Austin <- read.csv("Web/Austin_Master_Traded.csv", header = T, sep = ",", check.names = F)
 Tupelo <- read.csv("Web/Tupelo_Master_Traded.csv", header = T, sep = ",", check.names = F)
@@ -103,23 +101,9 @@ nodes$Tupelo <- ifelse(nodes$Tupelo>cutoff, nodes$group, 0)
 nodes$Detroit <- ifelse(nodes$Detroit>cutoff, nodes$group, 0)
 
 
-nodes[,c(11:16)][is.na(nodes[,c(11:16)])] <- 0
+nodes[is.na(nodes)] <- 0
 
 
 
-
-write.csv(nodes, "test_nodes.csv", row.names = F)
-
-
-
-
-#Palette
-#0: #cccccc (gray)
-#1: #a6761d (brown) 
-#2: #242424 (black)
-#3: #377eb8 (blue)
-#4: #984ea3 (purple)
-#5: #73c000 (green)
-#6: #ff7f00 (orange)  
-#7: #e31a1c (red)
-#8: #e6ab02 (gold)
+write.csv(edges, "edges.csv", row.names = F)
+write.csv(nodes, "nodes.csv", row.names = F)

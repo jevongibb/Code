@@ -1,3 +1,6 @@
+## Remember that you MUST ALWAYS LOAD PLYR FIRST. If you load dplyr first, this will
+## generate errors, and you will make yourself crazy debugging it.
+
 options(scipen=999)
 library(plyr)
 library(tidyr)
@@ -6,7 +9,8 @@ library(caret)
 
 
 #load Preferred Matrix
-Data <- read.csv("Matrices/AvgDist_Emp_2011to2015.csv", header = T, sep = ",", stringsAsFactors = F, check.names = F, row.names = 1)
+Data <- read.csv("Matrices/Multidimensional.csv", header = T, sep = ",", stringsAsFactors = F, check.names = F, row.names = 1)
+#Data <- read.csv("Matrices/AvgDist_Emp_2011to2015.csv", header = T, sep = ",", stringsAsFactors = F, check.names = F, row.names = 1)
 #Data <- read.csv("Matrices/AvgDist_Est.csv", header = T, sep = ",", stringsAsFactors = F, check.names = F, row.names = 1)
 #Data <- read.csv("Matrices/AvgDist_Occ.csv", header = T, sep = ",", stringsAsFactors = F, check.names = F, row.names = 1)
 #Data <- read.csv("Matrices/IO_data.csv", header = T, sep = ",", stringsAsFactors = F, check.names = F, row.names = 1)
@@ -17,16 +21,20 @@ Data_reshaped$Industry <- rownames(Data_reshaped)
 Data_reshaped <- gather(Data_reshaped, Neighbour, dist, -Industry)
 Data_reshaped <- Data_reshaped[Data_reshaped$Industry != Data_reshaped$Neighbour, ]
 
+#The 0 distances created an error, so made them a little bigger
+Data_reshaped$dist <- ifelse(Data_reshaped$dist == 0, 0.00000001, Data_reshaped$dist)
+
 #load Employment data
 Employees <- read.csv("CZ/2015_Employees_RS.csv", header = T, sep = ",", stringsAsFactors = F, check.names = F)
 colnames(Employees) <- c("Region", "Industry", "RS")
 Employees$Industry <- as.character(Employees$Industry)
 
 #cutpoints using Euclidean Distance (lower is closer)
-cutpoints <- as.numeric(quantile(as.matrix(Data), c(.05, .1, .25, .5, .75)))
+cuts <- c(.45)
+cutpoints <- as.numeric(quantile(as.matrix(Data), cuts))
 
 #cutpoints using K-neighbors
-cutpoints_k <- c(2, 4, 10, 15, 20, 50)
+cutpoints_k <- c(2, 4, 6, 10, 16, 26, 42)
 
 
 ### Calculate expected RS using weighted raidus #####################################################
@@ -36,13 +44,14 @@ weightedRadius <- function(cutDist, distMat, datRS) {
   #filter distance matrix by cutDist (radius)
   distMat_filtered <- distMat[distMat$dist <= cutDist, ]
   
+  ##Must decide whether or not to include Minimums. This will dramatically increase both R-squared and RMSE. It's a tradeoff.
   #find the industries where the minimum distance is greater than the cutDist
-  #distMat_min_dist <- distMat %>% group_by(Industry) %>% summarise(min_dist = min(dist))
-  #distMat_min_dist <- distMat %>% left_join(distMat_min_dist, by = "Industry") %>% filter(dist == min_dist)
-  #distMat_min_dist <- distMat_min_dist[(!distMat_min_dist$Industry %in% distMat_filtered$Industry), ]
+  distMat_min_dist <- distMat %>% group_by(Industry) %>% summarise(min_dist = min(dist))
+  distMat_min_dist <- distMat %>% left_join(distMat_min_dist, by = "Industry") %>% filter(dist == min_dist)
+  distMat_min_dist <- distMat_min_dist[(!distMat_min_dist$Industry %in% distMat_filtered$Industry), ]
   
   #combine filtered and min_dist
-  #distMat_filtered <- rbind(distMat_filtered, distMat_min_dist[, c("Industry", "Neighbour", "dist")])
+  distMat_filtered <- rbind(distMat_filtered, distMat_min_dist[, c("Industry", "Neighbour", "dist")])
   
   #split data to chunks (to overcome memory allocation error)
   nsplit <- 5
@@ -95,12 +104,12 @@ avgRadius <- function(cutDist, distMat, datRS) {
   distMat_filtered <- distMat[distMat$dist <= cutDist, ]
   
   #find the industries where the minimum distance is greater than the cutDist
-  #distMat_min_dist <- distMat %>% group_by(Industry) %>% summarise(min_dist = min(dist))
-  #distMat_min_dist <- distMat %>% left_join(distMat_min_dist, by = "Industry") %>% filter(dist == min_dist)
-  #distMat_min_dist <- distMat_min_dist[(!distMat_min_dist$Industry %in% distMat_filtered$Industry), ]
+  distMat_min_dist <- distMat %>% group_by(Industry) %>% summarise(min_dist = min(dist))
+  distMat_min_dist <- distMat %>% left_join(distMat_min_dist, by = "Industry") %>% filter(dist == min_dist)
+  distMat_min_dist <- distMat_min_dist[(!distMat_min_dist$Industry %in% distMat_filtered$Industry), ]
   
   #combine filtered and min_dist
-  #distMat_filtered <- rbind(distMat_filtered, distMat_min_dist[, c("Industry", "Neighbour", "dist")])
+  distMat_filtered <- rbind(distMat_filtered, distMat_min_dist[, c("Industry", "Neighbour", "dist")])
   
   #split data to chunks (to overcome memory allocation error)
   nsplit <- 5
@@ -192,9 +201,16 @@ avgKNN <- function(k, distMat, datRS) {
 # Run KNN
 weightedTable <- plyr::adply(cutpoints, 1, weightedRadius, distMat = Data_reshaped, datRS = Employees)
 weightedTable$X1 <- NULL
+weightedTable$Test <- weightedTable$R2 / weightedTable$RMSE
+weightedTable$Quantile <- cuts
+weightedTable <- weightedTable[,c(6,1:5)]
 
 avgTable <- plyr::adply(cutpoints, 1, avgRadius, distMat = Data_reshaped, datRS = Employees)
 avgTable$X1 <- NULL
+avgTable$Test <- avgTable$R2 / avgTable$RMSE
+avgTable$Quantile <- cuts
+avgTable <- avgTable[,c(6,1:5)]
 
 kTable <- plyr::adply(cutpoints_k, 1, avgKNN, distMat = Data_reshaped, datRS = Employees)
 kTable$X1 <- NULL
+kTable$Test <- kTable$R2 / kTable$RMSE

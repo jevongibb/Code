@@ -9,17 +9,6 @@ Employees <- read.csv("County/Imputed_Concord.csv", header = T, sep = ",", strin
 Employees <- Employees[,c(1,2,13,12,11,10,9,8,7,6,5,4,3)]
 Trends <- Employees
 
-#Calculate 2015 RS
-EmpCZTotal <- Employees %>% group_by(CZ) %>% summarise(CZ_Total=sum(`2015`))
-EmpNAICSTotal <- Employees %>% group_by(naics) %>% summarise(Industry_Total=sum(`2015`))
-EmpTotal <- sum(EmpNAICSTotal$Industry_Total)
-
-Employees <- Employees %>% left_join(EmpCZTotal, by="CZ")
-Employees <- Employees %>% left_join(EmpNAICSTotal, by="naics")
-
-Employees$RS_2015 <- (Employees$`2015` / Employees$CZ_Total) / (Employees$Industry_Total / EmpTotal)
-Employees$CZ_Total <- Employees$Industry_Total <- NULL
-
 ### Local Data ###############################################################
 
 #Create Historical Deltas
@@ -77,6 +66,9 @@ NAICS <- read.csv("NAICS/NAICS.csv", header = T, sep = ",", stringsAsFactors = F
 NAICS <- NAICS[,c(1,6)]
 Master <- Master %>% left_join(NAICS, by=c("naics"="NAICS"))
 
+#Change NA to 0
+Master[is.na(Master)] <- 0
+
 ### Filter by Traded and Local ################################################
 
 #Load Traded industries
@@ -93,5 +85,4 @@ Master_Local$Traded_Local <- NULL
 
 
 ### Export ####################################################################
-write.csv(Master_Traded, "Web/Master_Traded.csv", row.names = F)
-write.csv(Master_Local, "Web/Master_Local.csv", row.names = F)
+write.csv(Master, "Web/Master_Counties.csv", row.names = F)

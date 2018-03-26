@@ -74,13 +74,25 @@ Combo$Scale_Occ <- scale(Combo$Occ)
 Combo$Scale_IO <- scale(Combo$IO)
 
 Combo$Scale <- rowMeans(Combo[,7:10], na.rm = T)
+Combo$Rescale <- scale(Combo$Scale)
+
+
+Combo$Multi <- Combo$Rescale + abs(min(Combo$Rescale))
 
 
 ### Export standardized distances as a matrix #########################
 
-NewCombo <- spread(Combo[,c(1,2,11)], Industry2, Scale, fill = NA)
+NewCombo <- spread(Combo[,c(1,2,13)], Industry2, Multi, fill = 0)
 rownames(NewCombo) <- NewCombo$Industry1
 NewCombo$Industry1 <- NULL
 NewCombo <- as.matrix(NewCombo)
 
-write.csv(NewCombo, "Matrices/NewCombo.csv")
+
+New2 <- NewCombo[!rownames(NewCombo) %in% Remove, !colnames(NewCombo) %in% Remove]
+
+cor(c(as.matrix(New2)), c(as.matrix(Occ)))
+cor(c(as.matrix(NewCombo)), c(as.matrix(LC_Emp)))
+cor(c(as.matrix(NewCombo)), c(as.matrix(LC_Est)))
+cor(c(as.matrix(NewCombo)), c(as.matrix(IO)))
+
+write.csv(NewCombo, "Matrices/Multidimensional.csv")
