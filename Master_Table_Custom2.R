@@ -7,17 +7,17 @@ options(stringsAsFactors = F)
 Employees <- read.csv("CZ/Hist_Employees_Q.csv", header = T, sep = ",", check.names = F)
 
 #Load Historical Employees by County
-Custom_Employees <- read.csv("County/Imputed_Concord.csv", header = T, sep = ",", check.names = F)
-Custom_Employees2 <- Custom_Employees
+County_Employees <- read.csv("County/Imputed_Concord.csv", header = T, sep = ",", check.names = F)
 
 #Load custom region definitions
-Tyler <- read.csv("CZ/Custom_Tyler.csv", header = T, sep = ",", check.names = F)
+Custom1 <- read.csv("CZ/Custom_Oxford.csv", header = T, sep = ",", check.names = F)
+Custom2 <- read.csv("CZ/Custom_LafayetteCounty.csv", header = T, sep = ",", check.names = F)
 
 #Combine regions
-Custom <- rbind(Tyler)
+Custom <- rbind(Custom1, Custom2)
 
 #Filter employees by new regions
-Custom_Employees <- Custom_Employees[,c(1,2,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3)] #reorg to start w/ 2001 and finish w/ 2015
+Custom_Employees <- County_Employees[,c(1,2,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3)] #reorg to start w/ 2001 and finish w/ 2015
 Custom_Employees <- subset(Custom_Employees, County %in% Custom$County)
 Custom_Employees <- Custom_Employees %>% left_join(Custom[,1:2], by = "County")
 Custom_Employees <- Custom_Employees[,c(18,2:17)]
@@ -133,24 +133,14 @@ Custom_Master_Local$Traded_Local <- NULL
 
 ### Split by Region and Export ################################################
 
-write.csv(Custom_Master_Traded, "Web/Tyler_Master_Traded.csv", row.names = F)
-write.csv(Custom_Master_Local, "Web/Tyler_Master_Local.csv", row.names = F)
+Master_Oxford_Traded <- subset(Custom_Master_Traded, Region == "Oxford")
+Master_LafayetteCounty_Traded <- subset(Custom_Master_Traded, Region == "LafayetteCounty")
 
+Master_Oxford_Local <- subset(Custom_Master_Local, Region == "Oxford")
+Master_LafayetteCounty_Local <- subset(Custom_Master_Local, Region == "LafayetteCounty")
 
+write.csv(Master_Oxford_Traded, "Web/Oxford_Master_Traded.csv", row.names = F)
+write.csv(Master_Oxford_Local, "Web/Oxford_Master_Local.csv", row.names = F)
 
-Master_Austin_Traded <- subset(Custom_Master_Traded, Region == "Austin")
-Master_Detroit_Traded <- subset(Custom_Master_Traded, Region == "Detroit")
-Master_Tupelo_Traded <- subset(Custom_Master_Traded, Region == "Tupelo")
-
-Master_Austin_Local <- subset(Custom_Master_Local, Region == "Austin")
-Master_Detroit_Local <- subset(Custom_Master_Local, Region == "Detroit")
-Master_Tupelo_Local <- subset(Custom_Master_Local, Region == "Tupelo")
-
-write.csv(Master_Austin_Traded, "Web/Austin_Master_Traded.csv", row.names = F)
-write.csv(Master_Austin_Local, "Web/Austin_Master_Local.csv", row.names = F)
-
-write.csv(Master_Detroit_Traded, "Web/Detroit_Master_Traded.csv", row.names = F)
-write.csv(Master_Detroit_Local, "Web/Detroit_Master_Local.csv", row.names = F)
-
-write.csv(Master_Tupelo_Traded, "Web/Tupelo_Master_Traded.csv", row.names = F)
-write.csv(Master_Tupelo_Local, "Web/Tupelo_Master_Local.csv", row.names = F)
+write.csv(Master_LafayetteCounty_Traded, "Web/LafayetteCounty_Master_Traded.csv", row.names = F)
+write.csv(Master_LafayetteCounty_Local, "Web/LafayetteCounty_Master_Local.csv", row.names = F)

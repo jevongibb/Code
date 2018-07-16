@@ -12,7 +12,7 @@ setwd("C:/Users/Jevon/Desktop/DevGPS/Data")
 #load data
 data <- jsonlite::fromJSON("C:/Users/Jevon/Desktop/Vibrant/national.json")
 node_data <- read.csv("nodes.csv", sep = ",", header = T, stringsAsFactors = F, check.names = F)
-Local <- read.csv("Web/Tyler_Master_Traded.csv", header = T, sep = ",", check.names = F)
+Local <- read.csv("Web/LafayetteCounty_Master_Traded.csv", header = T, sep = ",", check.names = F)
 
 #the JSON has two tables: Nodes and Edges
 
@@ -80,7 +80,7 @@ nodes$color <- ifelse(newnodes$`Relative Size`>0.5, nodes$color, "rgb(204,204,20
 
 #size
 library("scales")
-nodes$size <- rescale(newnodes$`Relative Size`, to=c(10,150))
+nodes$size <- rescale(newnodes$Employees, to=c(10,150))
 
 data[[1]] <- nodes
 
@@ -88,4 +88,4 @@ data[[1]] <- nodes
 
 
 data_json <- jsonlite::toJSON(data)
-write(data_json, "tyler.json")
+write(data_json, "lafayettecounty.json")
