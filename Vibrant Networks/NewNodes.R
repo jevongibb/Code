@@ -1,8 +1,3 @@
-# The JSON below was created by exporting a Gephi file.
-# I want to use R to change the Attributes for the Nodes.
-# The attributes are nested within a larger table.
-# I do not know how to change them and maintain the JSON structure.
-
 library(jsonlite)
 library(dplyr)
 library(tidyr)
