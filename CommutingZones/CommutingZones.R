@@ -60,7 +60,11 @@ fit <- hclust(as.dist(Dists), method="average")
 # Cornell paper used .9365 to generate 810. I am not going to use height to determine clusters.
 # Instead, I am comparing these results with others, and use a height to generate similar # clusters.
 # After testing, .969 generate 740 clusters using Average. Using Complete, .9999999 generate 809.
-res <- data.frame(region=regions, group=cutree(fit, h=.9999999))
+# NOTE: you now have a mismatch between height of cutting the tree and method.
+# That is - you are using "average" but cut the tree at .99999999.
+# If you know that you want 810 clusters, you can use k=810
+# This will cut the tree at the appropriate height to obtain 810 clusters
+res <- data.frame(region=regions, group=cutree(fit, k=810))
 
 # plot the result (hard to see anything because of high number of values)
 plot(fit, labels=FALSE, cex.lab=0.7, cex.axis=0.7)
@@ -84,12 +88,16 @@ plotByClust <- function(inds, ss, ...) {
 }
 
 # get SS for each cluster size from 1 to 1000
-ss <- mapply(getWithinSS, list(fit), 1:1000, list(Dists))
+# NOTE - the final element to this function has to be the dataset, not distances.
+# since our data object is complex now and distances are not euclidean - this function will not work.
+# Let's use average silhouette method instead
+
+# ss <- mapply(getWithinSS, list(fit), 1:1000, list(Dists))
 
 # Inspect the sum of squares graph
-plotByClust(1:1000, ss, main="Sum of Squares by Cluster Size", ylab="sum of squares",
-            xlim=c(0, 1000), ylim=c(0, max(ss))
-            )
+# plotByClust(1:1000, ss, main="Sum of Squares by Cluster Size", ylab="sum of squares",
+            # xlim=c(0, 1000), ylim=c(0, max(ss))
+            # )
 
 ############################## AVERAGE SILHOUETTE ##############################
 
@@ -97,19 +105,20 @@ getAverageSil <- function(fit, k, dists) {
   mean(silhouette(cutree(fit, k), dists)[,3])
 }
 
-sils <- mapply(getAverageSil, list(fit), 2:1000, list(Dists))
-plotByClust(2:1000, sils, main="Average Silhouette by Cluster Size", ylab="mean silhouette")
+sils <- mapply(getAverageSil, list(fit), 2:3000, list(Dists))
+plotByClust(2:3000, sils, main="Average Silhouette by Cluster Size", ylab="mean silhouette")
 
 ################################ OBTAIN GROUPS #################################
 
 # Select the number of clusters (based on average silhouette (not considering first 10 points))
 nclust <- which.max(sils[-c(1:10)])+10
-result <- data.frame(county=regions, group=cutree(fit, k=nclust))
+result <- data.frame(county=regions, group=cutree(fit, k=nclust), stringsAsFactors=FALSE)
 
 # Add county names to result
 Data2 <- read_excel("CZ/CommutingFlows.xlsx", skip = 5)
 Data2$fips <- paste(Data2$`State FIPS Code`, Data2$`County FIPS Code`, sep = "")
 Data2 <- Data2[,c(15, 3, 4)]
 Data2 <- unique(Data2)
-result$county <- as.character(result$county)
+
 result <- result %>% left_join(Data2, by=c("county"="fips"))
+
