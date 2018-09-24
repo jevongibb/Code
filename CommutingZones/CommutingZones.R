@@ -1,3 +1,25 @@
+################################################################################
+#################################### INTRO #####################################
+################################################################################
+
+# Objective: To group US counties into labor areas - called Commuting Zones (CZs) - by creating
+#   clusters based on where each county's residents work.
+
+# Background: CZs are commonly used for economic analysis. Because people change
+#   jobs and travel different distances to work over time, CZ definitions require
+#   periodic update. Different sources have made different definitions available for
+#   different periods, but I have not found open source code for the clustering methodology.
+#   My goal is to create open source code to create CZ definitions using the most recent
+#   clustering packages.
+
+# Links:
+#   Background on CZs: https://www.aeaweb.org/conference/2017/preliminary/paper/thT52i7D
+#   USDA CZ definitions: https://www.ers.usda.gov/data-products/commuting-zones-and-labor-market-areas/
+
+################################################################################
+################################## LIBRARIES ###################################
+################################################################################
+
 library(dplyr)
 library(readxl)
 library(tidyr)
@@ -36,14 +58,21 @@ RLF <- Data %>% group_by(i) %>% summarise(RLF=sum(Fij))
 Data <- Data %>% left_join(RLF, by="i")
 Data <- Data %>% left_join(RLF, by=c("j"="i"))
 colnames(Data)[5:6] <- c("RLFi", "RLFj")
-Data$Fji <- ifelse(Data$i==Data$j, 0, Data$Fji) # avoid double-counting when same county. Need to test whether this makes a difference.
+# Data$Fji <- ifelse(Data$i==Data$j, 0, Data$Fji) # avoid double-counting when same county. Issue resolved in Line 70.
 
 #Calculate Distance
 Data$Dist <- 1 - ((Data$Fij + Data$Fji) / pmin(Data$RLFi, Data$RLFj))
+# 2515 combinations had distance less than 0. Most were double-counting the same county
+debug <- subset(Data, Dist < 0)
+# 26 combinations of two different counties had distances less than 0.
+debug2 <- subset(Data, Dist < 0 & i != j)
+# Minimum distance should be 0.
+Data$Dist <- ifelse(Data$Dist < 0, 0, Data$Dist)
+
 
 # Arrange into a matrix
 Dists <- tapply(Data$Dist, list(Data$i, Data$j), sum)
-isSymmetric(Dists) # NOTE: check if the matrix is symmetric
+isSymmetric(Dists) # NOTE: check whether the matrix is symmetric
 regions <- rownames(Dists)
 
 ################################################################################
@@ -52,19 +81,15 @@ regions <- rownames(Dists)
 
 ########################### Hierarchical Clustering ############################
 
-# using "complete" method to get well-bounded clusters
-# NOTE: TS use the "average" linkage method, not "complete". 
+# TS use the "average" linkage method. So do I, while noting the many other options.
 fit <- hclust(as.dist(Dists), method="average")
 
-# NOTE: TS used a height of .98 that generated 741 clusters.
-# Cornell paper used .9365 to generate 810. I am not going to use height to determine clusters.
-# Instead, I am comparing these results with others, and use a height to generate similar # clusters.
-# After testing, .969 generate 740 clusters using Average. Using Complete, .9999999 generate 809.
-# NOTE: you now have a mismatch between height of cutting the tree and method.
-# That is - you are using "average" but cut the tree at .99999999.
-# If you know that you want 810 clusters, you can use k=810
-# This will cut the tree at the appropriate height to obtain 810 clusters
-res <- data.frame(region=regions, group=cutree(fit, k=810))
+# TS used a height of .98 that generated 741 clusters. This generates 575 at .98.
+# Choosing an hclust method such as "complete" generates many more clusters.
+res <- data.frame(region=regions, group=cutree(fit, h=.98))
+
+# Can also cut by number of clusters if so desired.
+# res <- data.frame(region=regions, group=cutree(fit, k=810))
 
 # plot the result (hard to see anything because of high number of values)
 plot(fit, labels=FALSE, cex.lab=0.7, cex.axis=0.7)
@@ -82,31 +107,32 @@ getWithinSS <- function(fit, k, x) {
 }
 
 plotByClust <- function(inds, ss, ...) {
-  plot(inds, ss, cex=0.5, pch=19, xlab="# of clusters", cex.lab=0.7, cex.axis=0.7,
+  plot(inds, ss, cex=0.5, pch=19, xlab="Number of Clusters", cex.lab=0.7, cex.axis=0.7,
        mgp=c(2,0.5,0), tck=-0.01, ...
        )
 }
 
-# get SS for each cluster size from 1 to 1000
-# NOTE - the final element to this function has to be the dataset, not distances.
-# since our data object is complex now and distances are not euclidean - this function will not work.
-# Let's use average silhouette method instead
+# Sum of Squares method does not work using custom distance. Must use alternative, such as Average Silhouette.
 
 # ss <- mapply(getWithinSS, list(fit), 1:1000, list(Dists))
 
 # Inspect the sum of squares graph
-# plotByClust(1:1000, ss, main="Sum of Squares by Cluster Size", ylab="sum of squares",
+# plotByClust(1:1000, ss, main="Sum of Squares by Number of Clusters", ylab="Sum of Squares",
             # xlim=c(0, 1000), ylim=c(0, max(ss))
             # )
 
 ############################## AVERAGE SILHOUETTE ##############################
+# From Wikipedia: The silhouette value is a measure of how similar an object is to its own
+# cluster (cohesion) compared to other clusters (separation). The silhouette ranges from ???1
+# to +1, where a high value indicates that the object is well matched to its own cluster and
+# poorly matched to neighboring clusters.
 
 getAverageSil <- function(fit, k, dists) {
   mean(silhouette(cutree(fit, k), dists)[,3])
 }
 
 sils <- mapply(getAverageSil, list(fit), 2:3000, list(Dists))
-plotByClust(2:3000, sils, main="Average Silhouette by Cluster Size", ylab="mean silhouette")
+plotByClust(2:3000, sils, main="Average Silhouette by Number of Clusters", ylab="Avg Silhouette Value")
 
 ################################ OBTAIN GROUPS #################################
 
@@ -121,4 +147,3 @@ Data2 <- Data2[,c(15, 3, 4)]
 Data2 <- unique(Data2)
 
 result <- result %>% left_join(Data2, by=c("county"="fips"))
-
