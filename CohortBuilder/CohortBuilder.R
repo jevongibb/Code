@@ -70,24 +70,41 @@ Labor <- Labor[,c(1:3, 12)]
 # GDP data available from BEA in 2017 current dollars, https://www.bea.gov/iTable/iTable.cfm?reqid=70&step=1&isuri=1&acrdn=2#reqid=70&step=1&isuri=1
 
 #Load data
-EarningsByCounty <- read.csv("EconData/ACS_16_5YR_S2001_with_ann_Counties.csv", sep = ",", header = T, check.names = F, stringsAsFactors = F, skip = 1)
-EarningsByState <- read.csv("EconData/ACS_16_5YR_S2001_with_ann_States.csv", sep = ",", header = T, check.names = F, stringsAsFactors = F, skip = 1)
+#EarningsByCounty <- read.csv("EconData/ACS_16_5YR_S2001_with_ann_Counties.csv", sep = ",", header = T, check.names = F, stringsAsFactors = F, skip = 1)
+#EarningsByState <- read.csv("EconData/ACS_16_5YR_S2001_with_ann_States.csv", sep = ",", header = T, check.names = F, stringsAsFactors = F, skip = 1)
+Earnings <- read.csv("EconData/CA5N_2001_2016__ALL_AREAS.csv", header = T, check.names = F, stringsAsFactors = F)
 GDPbyState <- read.csv("EconData/GDP_byState.csv", sep = ",", header = T, check.names = F, stringsAsFactors = F, skip = 4)
 HoursWorked <- read.csv("EconData/ACS_16_5YR_B23018_with_ann.csv", sep = ",", header = T, check.names = F, stringsAsFactors = F, skip = 1)
 
-#Format Earnings by County
-EarningsByCounty <- EarningsByCounty[,c(2,3,4,82)]
-EarningsByCounty[3:4] <- sapply(EarningsByCounty[3:4], as.numeric)
-debugEarningsCounty <- EarningsByCounty[!complete.cases(EarningsByCounty),]
-EarningsByCounty$Total <- EarningsByCounty$`Total; Estimate; Population 16 years and over with earnings` *
-  EarningsByCounty$`Total; Estimate; Mean earnings (dollars)`
+#Format Earnings
+Earnings[,c(1,8:23)] <- sapply(Earnings[,c(1,8:23)], as.integer)
+debug <- Earnings[!complete.cases(Earnings),] # Some NAs get introduced above, but not a problem
 
-#Format Earnings by State
-EarningsByState <- EarningsByState[,c(2,3,4,82)]
-EarningsByState[3:4] <- sapply(EarningsByState[3:4], as.numeric)
-debugEarningsState <- EarningsByState[!complete.cases(EarningsByState),]
-EarningsByState$Total <- EarningsByState$`Total; Estimate; Population 16 years and over with earnings` *
-  EarningsByState$`Total; Estimate; Mean earnings (dollars)`
+Earnings <- subset(Earnings, GeoFIPS>=1000) # Remove National Data
+Earnings <- subset(Earnings, LineCode == 10)
+Earnings <- Earnings[,c(1,2,23)]
+
+StateEarnings <- subset(Earnings, GeoFIPS %% 1000 == 0 & GeoFIPS < 90000)
+Earnings <- subset(Earnings, GeoFIPS %% 1000 != 0) # Remove non-County-level data
+
+#Fix error in California state-level income
+row.names(StateEarnings) <- NULL
+California <- subset(Earnings, GeoFIPS >= 6000 & GeoFIPS <= 6115)
+CalTotal <- sum(as.numeric(California$`2016`))
+StateEarnings[5,3] <- CalTotal
+
+#Add State column to county-level earnings in order to join state data
+Earnings$State <- as.integer(substr(Earnings$GeoFIPS, 1, nchar(Earnings$GeoFIPS)-3)) * 1000
+
+#Join State to County
+Earnings <- Earnings %>% left_join(StateEarnings[,c(1,3)], by=c("State"="GeoFIPS"))
+Earnings <- Earnings[,c(1,4,2,3,5)]
+colnames(Earnings) <- c("FIPS", "State", "Name", "CountyTotal", "StateTotal")
+
+#Calculate % of Total
+Earnings$Percent <- Earnings$CountyTotal / Earnings$StateTotal
+
+
 
 #Format GDP by State
 GDPbyState <- subset(GDPbyState, IndCode == 1)
@@ -96,17 +113,16 @@ GDPbyState$`2016` <- as.numeric(GDPbyState$`2016`)
 #Format Hours Worked
 HoursWorked <- HoursWorked[,2:4]
 
+
 #Join all data
-EarningsByCounty$State <- as.integer(substr(EarningsByCounty$Id2, 1, nchar(EarningsByCounty$Id2)-3))
-GDPbyState$Fips <- as.integer(substr(GDPbyState$Fips, 1, nchar(GDPbyState$Fips)-3))
+Productivity <- Earnings %>% left_join(GDPbyState[,c(1,5)], by=c("State"="Fips"))
+Productivity <- Productivity %>% left_join(HoursWorked[,c(1,3)], by=c("FIPS"="Id2"))
+colnames(Productivity)[7:8] <- c("GDP", "Hours")
 
-Productivity <- EarningsByCounty %>% left_join(EarningsByState[,c(1,5)], by=c("State"="Id2"))
-Productivity <- Productivity %>% left_join(GDPbyState[,c(1,5)], by=c("State"="Fips"))
-Productivity <- Productivity %>% left_join(HoursWorked[,c(1,3)], by="Id2")
 
-#Format Productivity
-Productivity <- Productivity[,c(1:3, 5, 7:9)]
-colnames(Productivity) <- c("ID", "Geography", "Population 16 and Over", "County Earnings", "State Earnings", "State GDP", "Hours Worked")
+#Calc Productivity (THIS IS NOT WORKING)
+Productivity$Productivity <- Productivity$Percent * Productivity$GDP / Productivity$Hours * 10000
+
 
 #Calc Productivity
 Productivity$`County Share` <- (Productivity$`County Earnings` / Productivity$`State Earnings`)
